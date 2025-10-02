@@ -66,6 +66,12 @@ interface AXIL_interface;
         // accept the read data and response information.
     logic  S_AXI_RREADY;
 
+    axil_rd_state_type rd_state;
+    axil_wr_state_type wr_state;
+
+    logic [31:0] rd_cnt_wait;
+    logic [31:0] wr_cnt_wait;
+
 
     modport master (
         input S_AXI_ACLK,
