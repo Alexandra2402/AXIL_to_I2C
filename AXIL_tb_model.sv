@@ -1,4 +1,4 @@
-timescale 1ns/1ps
+`timescale 1ns/1ps
 
 `ifndef AXIL_TB_MODEL
 `define AXIL_TB_MODEL
@@ -8,8 +8,8 @@ timescale 1ns/1ps
 
 class AXIL_model;
 //signals
-logic [C_S_AXI_DATA_WIDTH-1:0] read_data;
-logic [C_S_AXI_DATA_WIDTH-1:0] write_data;
+logic [`C_S_AXI_DATA_WIDTH-1:0] read_data;
+logic [`C_S_AXI_DATA_WIDTH-1:0] write_data;
 //interface
 virtual AXIL_interface axil_int;
 
@@ -17,17 +17,17 @@ function new(virtual AXIL_interface axil_int);
     //init virtual interface
     this.axil_int = axil_int;
     $display("[%t] AXIL model : Initialized.", $time);
-endfunction: new
+endfunction : new
 
 //tasks
 extern task reset();
-extern task axil_read(logic [C_S_AXI_ADDR_WIDTH-1:0] read_address);
-extern task axil_write(logic [C_S_AXI_ADDR_WIDTH-1:0] write_address, logic [C_S_AXI_DATA_WIDTH-1:0] write_data);
+extern task axil_read(logic [`C_S_AXI_ADDR_WIDTH-1:0] read_address);
+extern task axil_write(logic [`C_S_AXI_ADDR_WIDTH-1:0] write_address, logic [`C_S_AXI_DATA_WIDTH-1:0] write_data);
 
-endclass: AXIL_model
+endclass : AXIL_model
 
 //READ OPERATION
-task AXIL_model::axil_read (logic [C_S_AXI_ADDR_WIDTH-1:0] read_address);
+task AXIL_model::axil_read (logic [`C_S_AXI_ADDR_WIDTH-1:0] read_address);
 
     @posedge(axil_int.S_AXI_ACLK)
     axil_int.rd_state <= RD_START;
@@ -54,7 +54,7 @@ task AXIL_model::axil_read (logic [C_S_AXI_ADDR_WIDTH-1:0] read_address);
                     if (axil_int.rd_cnt_wait !=0)
                         axil_int.rd_cnt_wait <= axil_int.rd_cnt_wait -1;
                     else begin
-                        $display("[%t] AXIL model : "S_AXI_ARREADY" TIme-Out", $time);
+                        $display("[%t] AXIL model : S_AXI_ARREADY TIme-Out", $time);
                         #100;
                         $stop;
                     end
@@ -72,7 +72,7 @@ task AXIL_model::axil_read (logic [C_S_AXI_ADDR_WIDTH-1:0] read_address);
                     if (axil_int.rd_cnt_wait !=0)
                         axil_int.rd_cnt_wait <= axil_int.rd_cnt_wait -1;
                     else begin
-                        $display("[%t] AXIL model : "S_AXI_RVALID" TIme-Out", $time);
+                        $display("[%t] AXIL model : S_AXI_RVALID TIme-Out", $time);
                         #100;
                         $stop;
                     end
@@ -119,7 +119,7 @@ task AXIL_model::axil_write (logic [C_S_AXI_ADDR_WIDTH-1:0] write_address, logic
                 if (axil_int.wr_cnt_wait !=0)
                     axil_int.wr_cnt_wait <= axil_int.wr_cnt_wait -1;
                 else begin
-                    $display("[%t] AXIL model : "S_AXI_AWREADY & S_AXI_WREADY" TIme-Out", $time);
+                    $display("[%t] AXIL model : S_AXI_AWREADY & S_AXI_WREADY TIme-Out", $time);
                     #100;
                     $stop;
                 end
@@ -134,7 +134,7 @@ task AXIL_model::axil_write (logic [C_S_AXI_ADDR_WIDTH-1:0] write_address, logic
                 if (axil_int.wr_cnt_wait !=0)
                     axil_int.wr_cnt_wait <= axil_int.wr_cnt_wait -1;
                 else begin
-                    $display("[%t] AXIL model : "S_AXI_BVALID" TIme-Out", $time);
+                    $display("[%t] AXIL model : S_AXI_BVALID TIme-Out", $time);
                     #100;
                     $stop;
                 end
