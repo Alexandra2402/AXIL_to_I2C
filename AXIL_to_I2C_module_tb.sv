@@ -5,28 +5,28 @@
 `include "AXIL_module.sv"
 `include "AXIL_tb_model.sv"
 
-module AXIL_to_I2C_module_tb
+module AXIL_to_I2C_module_tb();
 
     //axi lite
     logic s_axi_aclk;
     logic s_axi_aresetn;
-    logic [3:0]s_axi_awaddr;
-    logic [2:0]s_axi_awprot;
+    logic [3:0] s_axi_awaddr;
+    logic [2:0] s_axi_awprot;
     logic s_axi_awvalid;
     logic s_axi_awready;
-    logic [31:0]s_axi_wdata;
-    logic [3:0]s_axi_wstrb;
+    logic [31:0] s_axi_wdata;
+    logic [3:0] s_axi_wstrb;
     logic s_axi_wvalid;
     logic s_axi_wready;
-    logic [1:0]s_axi_bresp;
+    logic [1:0] s_axi_bresp;
     logic s_axi_bvalid;
     logic s_axi_bready;
-    logic [3:0]s_axi_araddr;
-    logic [2:0]s_axi_arprot;
+    logic [3:0] s_axi_araddr;
+    logic [2:0] s_axi_arprot;
     logic s_axi_arvalid;
     logic s_axi_arready;
-    logic [31:0]s_axi_rdata;
-    logic [1:0]s_axi_rresp;
+    logic [31:0] s_axi_rdata;
+    logic [1:0] s_axi_rresp;
     logic s_axi_rvalid;
     logic s_axi_rready;
 
@@ -58,12 +58,12 @@ module AXIL_to_I2C_module_tb
     assign axil_int.S_AXI_RVALID 	=   s_axi_rvalid;
     assign s_axi_rready 			=   axil_int.S_AXI_RREADY;
 
-    AXIL_module DUT 
+    AXIL_module 
         #(
             .C_S_AXI_DATA_WIDTH(`C_S_AXI_DATA_WIDTH),
             .C_S_AXI_ADDR_WIDTH(`C_S_AXI_ADDR_WIDTH)
         )
-        (
+        DUT (
             .S_AXI_ACLK(s_axi_aclk),
             .S_AXI_ARESETN(s_axi_aresetn),
             .S_AXI_AWADDR(s_axi_awaddr),
@@ -85,21 +85,27 @@ module AXIL_to_I2C_module_tb
             .S_AXI_RRESP(s_axi_rresp),
             .S_AXI_RVALID(s_axi_rvalid),
             .S_AXI_RREADY(s_axi_rready)
-    )
+    );
 
     initial begin
-        axil_mod = new(axil_int);
         s_axi_aresetn = 0;
         #1000
         s_axi_aresetn = 1;
-        repeat(100)
-            AXIL_compare_results()
     end
+
+    // initial begin
+    //     // axil_mod = new(axil_int);
+    //     s_axi_aresetn = '0;
+    //     #1000
+    //     s_axi_aresetn = '1;
+    //     // repeat(10)
+    //         // AXIL_compare_results()
+    // end
 
     task AXIL_compare_results();
 
-        rand logic ['C_S_AXI_ADDR_WIDTH-1:0] addr;
-        rand logic [`C_S_AXI_DATA_WIDTH-1:0] wr_data;
+         logic [`C_S_AXI_ADDR_WIDTH-1:0] addr;
+         logic [`C_S_AXI_DATA_WIDTH-1:0] wr_data;
         // logic [`C_S_AXI_DATA_WIDTH-1:0] rd_data;
 
         axil_mod.axil_write(addr, wr_data);

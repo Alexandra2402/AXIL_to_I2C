@@ -27,27 +27,27 @@ extern task axil_write(logic [`C_S_AXI_ADDR_WIDTH-1:0] write_address, logic [`C_
 endclass : AXIL_model
 
 //READ OPERATION
-task AXIL_model::axil_read (logic [`C_S_AXI_ADDR_WIDTH-1:0] read_address);
+task AXIL_model :: axil_read (logic [`C_S_AXI_ADDR_WIDTH-1:0] read_address);
 
-    @posedge(axil_int.S_AXI_ACLK)
+    @(posedge axil_int.S_AXI_ACLK)
     axil_int.rd_state <= RD_START;
 
     forever begin 
-        @posedge(axil_int.S_AXI_ACLK)
+        @(posedge axil_int.S_AXI_ACLK)
         case(axil_int.rd_state)
             RD_START: begin
                 axil_int.S_AXI_ARVALID  <= '1;
                 axil_int.S_AXI_ARADDR   <= read_address;
                 axil_int.S_AXI_ARPROT   <= '1;
                 axil_int.S_AXI_RREADY   <= '1;
-                axil_int.rd_cnt_wait    <= RD_ARREADY_WAIT;
+                axil_int.rd_cnt_wait    <= `RD_ARREADY_WAIT;
                 axil_int.rd_state       <= RD_FINISH;
             end
             RD_FINISH:begin
                 if(axil_int.S_AXI_ARREADY) begin
                     axil_int.S_AXI_ARVALID  <= '0;
                     axil_int.S_AXI_ARADDR   <= '0;
-                    axil_int.rd_cnt_wait    <= RD_RVALID_WAIT;
+                    axil_int.rd_cnt_wait    <= `RD_RVALID_WAIT;
                     axil_int.rd_state       <= RD_DATA;
                 end
                 else begin
@@ -82,16 +82,16 @@ task AXIL_model::axil_read (logic [`C_S_AXI_ADDR_WIDTH-1:0] read_address);
 
     end
 
-endtask: AXIL_read
+endtask: axil_read
 
 //WRITE OPERATION
-task AXIL_model::axil_write (logic [C_S_AXI_ADDR_WIDTH-1:0] write_address, logic [C_S_AXI_DATA_WIDTH-1:0] write_data);
+task AXIL_model::axil_write (logic [`C_S_AXI_ADDR_WIDTH-1:0] write_address, logic [`C_S_AXI_DATA_WIDTH-1:0] write_data);
     
-    @posedge(axil_int.S_AXI_ACLK)
+    @(posedge axil_int.S_AXI_ACLK)
     axil_int.wr_state <= WR_START;
 
     forever begin
-    @posedge(axil_int.S_AXI_ACLK)
+    @(posedge axil_int.S_AXI_ACLK)
     case(axil_int.wr_state)
         WR_START: begin
             axil_int.S_AXI_AWVALID  <= '1;
@@ -102,7 +102,7 @@ task AXIL_model::axil_write (logic [C_S_AXI_ADDR_WIDTH-1:0] write_address, logic
             axil_int.S_AXI_WSTRB    <= 8'hFF;
             axil_int.S_AXI_AWPROT   <= '1;
             axil_int.wr_state       <= WR_FINISH;
-            axil_int.wr_cnt_wait    <= WR_READY_WAIT;
+            axil_int.wr_cnt_wait    <= `WR_READY_WAIT;
         end
         WR_FINISH: begin
             if (axil_int.S_AXI_AWREADY & axil_int.S_AXI_WREADY) begin
@@ -113,7 +113,7 @@ task AXIL_model::axil_write (logic [C_S_AXI_ADDR_WIDTH-1:0] write_address, logic
                 axil_int.S_AXI_WSTRB    <= 8'h00;
                 axil_int.S_AXI_AWPROT   <= '0;
                 axil_int.wr_state       <= WR_RESP;
-                axil_int.wr_cnt_wait    <= WR_BVALID_WAIT;
+                axil_int.wr_cnt_wait    <= `WR_BVALID_WAIT;
             end
             else begin
                 if (axil_int.wr_cnt_wait !=0)
@@ -145,12 +145,12 @@ task AXIL_model::axil_write (logic [C_S_AXI_ADDR_WIDTH-1:0] write_address, logic
 
     end
 
-endtask: AXIL_write
+endtask: axil_write
 
 //RESET OPERATION
 task AXIL_model::reset ();
 
-    @posedge(axil_int.S_AXI_ACLK)
+    @(posedge axil_int.S_AXI_ACLK)
 
     axil_int.S_AXI_ARADDR   <= '0;
     axil_int.S_AXI_ARPROT   <= '0;

@@ -1,38 +1,40 @@
 `include "I2C_define.sv"
 
-module I2C_module #(
-    parameter integer I2C_DATA_WIDTH = 8,
-    parameter integer I2C_ADDR_WIDTH = 8
-)
+module I2C_module 
+// #(
+//     parameter integer I2C_DATA_WIDTH = 8,
+//     parameter integer I2C_ADDR_WIDTH = 8
+// )
 (
+    output logic SIO_C,
+    inout logic SIO_D,
     input logic aclk,
     input logic aresetn,
-    input logic[I2C_DATA_WIDTH-1:0] i2c_data_wr,
-    input logic[I2C_ADDR_WIDTH-1:0] i2c_subaddr,
-    input logic[I2C_ADDR_WIDTH-2:0] i2c_id,
+    input logic[`I2C_DATA_WIDTH-1:0] i2c_data_wr,
+    input logic[`I2C_ADDR_WIDTH-1:0] i2c_subaddr,
+    input logic[`I2C_ADDR_WIDTH-2:0] i2c_id,
     input logic trans_type, //rd = 1, wr = 0
-    inout reg trans_en, //start rd/wr transaction
-    // output logic [I2C_DATA_WIDTH-1:0] i2c_data_rd,
-    output logic SIO_C,
-    output logic SIO_D
+    input logic trans_en, //start rd/wr transaction
+    output logic [`I2C_DATA_WIDTH-1:0] i2c_data_rd,
+    output logic finish
 );
 
-// localparam IP_ADDR_WIDTH = 7;
 localparam WR_TRANS_WIDTH = 27;
 
 logic SIO_C_next;
 logic SIO_D_next;
-// logic [I2C_DATA_WIDTH-1:0] i2c_data_rd;
-// logic [6:0] id_addr = 7'b1111111;
-logic [WR_TRANS_WIDTH/3-1:0] phase1_data;
-logic [WR_TRANS_WIDTH/3-1:0] phase2_data;
-logic [WR_TRANS_WIDTH/3-1:0] phase3_data;
-// logic [WR_TRANS_WIDTH-1:0] wr_transaction;
-// logic [WR_TRANS_WIDTH/3*2-1:0] rd_addr_transaction;
-// logic [WR_TRANS_WIDTH/3*2-1:0] rd_data_transaction;
-logic rd_flag, wr_flag, recieve_flag;
+logic [8:0] phase1_data;
+logic [8:0] phase2_data;
+logic [8:0] phase3_data;
+logic rd_flag, wr_flag, receive_flag = 0;
 logic [4:0] message_cntr;
-logic [WR_TRANS_WIDTH-1:0] message;
+logic [WR_TRANS_WIDTH+3:0] message;
+logic wr_complete = 0;
+logic rd_complete = 0;
+logic receive_complete = 0;
+logic [17:0] receive_reg;
+logic flag_delay;
+logic clk_flag_delay;
 
 I2C_phase_state_type PHASE_state;
 I2C_phase_state_type PHASE_state_next;
@@ -41,84 +43,158 @@ assign phase1_data = {i2c_id, trans_type, 1'bX};
 assign phase2_data = {i2c_subaddr, 1'bX};
 assign phase3_data = {i2c_data_wr, 1'bX};
 
-// assign wr_transaction = {phase1_data,phase2_data,phase3_data};
-// assign rd_addr_transaction = {phase1_data,phase2_data};
+assign SIO_D = (flag_delay ^ receive_flag) ? message[30] : 1'bZ;
+assign SIO_C = (clk_flag_delay) ? aclk : 1 ;
+assign i2c_data_rd = (receive_complete) ? receive_reg : 0;
+assign finish = (wr_flag || flag_delay || rd_flag || receive_flag) ? 0 : 1;
+assign clk_flag_delay = wr_flag ? wr_flag ~^ flag_delay : rd_flag ? rd_flag ~^ flag_delay : receive_flag ? receive_flag ~^ flag_delay : 0;
 
-
-always_ff @(posedge aclk or negedge aresetn)begin
-    if(!aresetn) begin
-        SIO_C <= '1;
-        SIO_D <= '1;
+always_ff @(posedge aclk or negedge aresetn) begin
+    if(!aresetn)
         PHASE_state <= PHASE_INIT;
-    end
-    else begin
-        SIO_C <= SIO_C_next;
-        SIO_D <= SIO_D_next;
-        PHASE_state <= PHASE_state_next;
-    end
-
+    else PHASE_state <= PHASE_state_next;
 end
 
-always begin
-    if (trans_en) begin
+always_comb begin 
+        rd_flag = 0;
+        wr_flag = 0;
+        receive_flag = 0;
+        PHASE_state_next = PHASE_state;
         case(PHASE_state) 
         PHASE_INIT: begin
-            message = '0;
-            rd_flag = '0;
-            wr_flag = '0;
-            if(trans_type) begin
+            rd_flag = 0;
+            wr_flag = 0;
+            if(trans_en && trans_type) begin
                 PHASE_state_next = PHASE_RD_SEND;
             end
-            else begin
+            else if (trans_en && !trans_type)begin
                 PHASE_state_next = PHASE_WR_SEND;
             end
         end
         PHASE_RD_SEND: begin
-            if(recieve_flag) 
-                PHASE_state_next = PHASE_RD_RECIEVE; 
-            else begin
-                PHASE_state_next = PHASE_RD_SEND; 
-                rd_flag = '1;
-                message = {phase1_data, phase2_data, 9'b000000000};
+            PHASE_state_next = PHASE_RD_SEND; 
+            rd_flag = 1;
+            if(rd_complete) begin
+                
+                PHASE_state_next = PHASE_RECEIVE;
             end
         end
-        PHASE_RD_RECIEVE: begin
-            PHASE_state_next = PHASE_FINISH;
+        PHASE_RECEIVE: begin
+            rd_flag = 0;
+            receive_flag = 1;
+            if (receive_complete)
+                PHASE_state_next = PHASE_FINISH;
         end
-        PHASE_WR_SEND: begin
-            wr_flag = '1;
-            message = {phase1_data, phase2_data, phase3_data};
-            PHASE_state_next = PHASE_FINISH;
+         PHASE_WR_SEND: begin
+            wr_flag = 1;
+            if(wr_complete)
+                PHASE_state_next = PHASE_FINISH;
         end
         PHASE_FINISH: begin
-            trans_en = '0;
-            rd_flag = '0;
-            wr_flag = '0;
-            message = '0;
+                rd_flag = 0;
+                wr_flag = 0;
+                receive_flag = 0;
+                PHASE_state_next = PHASE_INIT; 
         end
         endcase
-    end
 end
 
 always @(posedge aclk or negedge aresetn) begin
     if(!aresetn) 
-        message_cntr <= '0;
+        message_cntr <= 0;
     else begin
         if(rd_flag) begin
-            if(message_cntr == 17)
-                message_cntr <='0;
+            if(message_cntr == 22)
+                message_cntr <= 0;
             else
                 message_cntr <= message_cntr + 1;
         end
-        else if(wr_flag) begin
-            if(message_cntr == 26)
-                message_cntr <='0;
+        else if (receive_flag)begin
+            if(message_cntr == 18)
+                message_cntr <= 0;
             else
                 message_cntr <= message_cntr + 1;
+        end
+
+        else if(wr_flag) begin
+            if(message_cntr == 31)
+                message_cntr <= 0;
+            else
+                message_cntr <= message_cntr + 1;
+        end
+        else message_cntr <= 0;
+    end
+end
+
+always_ff @( posedge aclk ) begin
+    if (rd_flag && message_cntr == 22)
+        rd_complete <= 1;
+    else rd_complete <= 0;
+end
+
+always_ff @(posedge aclk ) begin
+    if (receive_flag && message_cntr == 18)
+        receive_complete <= 1;
+    else receive_complete <= 0;
+end
+
+always_ff @( posedge aclk ) begin
+    if (wr_flag && message_cntr == 29)
+        wr_complete <= 1;
+    else wr_complete <= 0;
+end
+
+always @(posedge aclk) begin
+    if (rd_flag) begin 
+        if (message_cntr >= 1)
+            message <= {message[29:0], 1'b0};
+        else if (message_cntr == 0)
+            message <= {1'b1,1'b0, phase1_data, phase2_data, 1'b0, 1'b1, 9'b000000000};
+        else message <= 0;
+    end
+    if (wr_flag) begin 
+        if (message_cntr >= 1) 
+            message <= {message[29:0], 1'b0};
+        else if (message_cntr == 0)
+            message <= {1'b1, 1'b0, phase1_data, phase2_data, phase3_data, 1'b0, 1'b1};
+        else message <= 0;
+    end
+end
+
+always_ff @( posedge aclk or negedge aresetn ) begin 
+    if (!aresetn)
+        receive_reg <= 0;
+    else begin
+        if (receive_flag) begin 
+            if (message_cntr >= 0) begin
+                receive_reg[18-message_cntr] <= SIO_D;
+            end
+            else begin
+                receive_reg <= 0;
+            end
         end
     end
 end
 
+always_ff @( posedge aclk ) begin
+    if (!aresetn)
+        flag_delay <= 0;
+    else begin
+        if (wr_flag)
+            flag_delay <= wr_flag;
+        else if (rd_flag)
+            flag_delay <= rd_flag;
+        else if (receive_flag)
+            flag_delay <= receive_flag;
+        else flag_delay <= 0;
+    end
+end
 
+// always_ff @( posedge aclk ) begin
+//     if (!aresetn)
+//         clk_flag_delay <= 0;
+//     else
+//         clk_flag_delay <= flag_delay;
+// end
 
-endmodule 
+endmodule
