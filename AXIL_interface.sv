@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 `ifndef AXIL_INTERFACE
 `define AXIL_INTERFACE
 

@@ -36,7 +36,7 @@ module AXIL_to_I2C_module_tb();
     logic s_axi_rready;
 
     logic SIO_C;
-    wire SIO_D;
+    reg SIO_D;
     logic aclk = 0;
     logic aresetn;
 
@@ -84,7 +84,7 @@ module AXIL_to_I2C_module_tb();
     assign s_axi_rready 			=   axil_int.S_AXI_RREADY;
 
     assign i2c_int.SIO_C            =   SIO_C;
-    // assign SIO_D                    =   i2c_int.SIO_D;
+    assign i2c_int.SIO_D            =   SIO_D;
 
     // AXIL_module 
     //     DUT (
@@ -121,7 +121,7 @@ module AXIL_to_I2C_module_tb();
     AXI_I2C
         DUT (
             .SIO_C(SIO_C),
-            .SIO_D(i2c_int.SIO_D),
+            .SIO_D(SIO_D),
             .aclk(aclk),
             .aresetn(aresetn),
             .S_AXI_ACLK(axil_int.S_AXI_ACLK),
@@ -166,11 +166,9 @@ module AXIL_to_I2C_module_tb();
     logic [6:0] i2c_id;
     logic [7:0] i2c_subaddr;
     logic [7:0] i2c_data_wr;
-    logic [31:0] wr_data;
-    logic [3:0] addr;
-    int i;
 
     initial begin
+        i2c_mod = new(i2c_int);
         axil_mod = new(axil_int);
         s_axi_aresetn = 0;
         aresetn = 0;
@@ -178,76 +176,33 @@ module AXIL_to_I2C_module_tb();
         s_axi_aresetn = 1;
         aresetn = 1;
         #100
-        addr = 0;
         repeat(128) begin //wr operation check
             i2c_id = $urandom_range(127,0);
             i2c_subaddr = $urandom_range(255,0);
             i2c_data_wr = $urandom_range(255,0);
-            // i2c_id = 7'b1100011;
-            // i2c_subaddr = 8'b00111100;
-            // i2c_data_wr = 8'b10100101;
             trans_en = 1;
-            trans_type = 0; //wr - 0; rd - 1
-            // AXIL_compare_results(0, {trans_en,trans_type,i2c_id,i2c_subaddr,i2c_data_wr,7'b0000000});
-            wr_data = {trans_en,trans_type,i2c_id,i2c_subaddr,i2c_data_wr,7'b0000000};
-            axil_mod.axil_write(0, wr_data);
-            $display("WRITE TO I2C SLAVE");
-            #500
-            for (i = 0; i < 100; i++) begin
-                axil_mod.axil_read(0);
-                if (axil_mod.read_data[6] == 1)
-                    break;
-                else if (i == 99) begin
-                    $display("WRITE FINISH RESPONSE ERROR");
-                    $stop;
-                end
-            end
-            // if (i2c_mod.wr_ready == 1) begin
-                trans_type = 1;
-                wr_data = {trans_en,1'b1,i2c_id,i2c_subaddr,i2c_data_wr,7'b0000000};
-                axil_mod.axil_write(addr, wr_data);
-                $display("READ FROM I2C SLAVE");
-            // end
-            for (i = 0; i < 100; i++) begin
-                axil_mod.axil_read(0);
-                if (axil_mod.read_data[6] == 1)
-                    break;
-                else if (i == 99) begin
-                    $display("READ FINISH RESPONSE ERROR");
-                    $stop;
-                end
-            end    
-            // if (i2c_mod.rd_ready == 1) begin
-                    axil_mod.axil_read(addr);
-                if(axil_mod.read_data[14:7] != i2c_data_wr) begin
-                    $display("AXIL WRITE/READ TRANSACTION FAILED");
-                    $display("AXIL WRITE DATA = %d READ DATA = %d", i2c_data_wr, axil_mod.read_data);
-                    $stop;
-                end
-            // end
+            trans_type = 1; //wr - 0; rd - 1
+            AXIL_compare_results(0, {trans_en,trans_type,i2c_id,i2c_subaddr,i2c_data_wr,7'b0000000});
         end
         $display("AXI_I2C WRITE/READ TRANSACTION SUCCESS");
         $stop;
     end
 
-    initial begin
-        i2c_mod = new(i2c_int);
+    task AXIL_compare_results(logic [`C_S_AXI_ADDR_WIDTH-1:0] addr,
+                                logic [`C_S_AXI_DATA_WIDTH-1:0] wr_data);
+        axil_mod.axil_write(addr, wr_data);
+        #60
         i2c_mod.I2C_read_write();
-    end
-
-    // task AXIL_compare_results(logic [`C_S_AXI_ADDR_WIDTH-1:0] addr,
-    //                             logic [`C_S_AXI_DATA_WIDTH-1:0] wr_data);
-    //     axil_mod.axil_write(addr, wr_data);
-    //     #5000
-    //     if (i2c_mod.ready == 1) begin
-    //         axil_mod.axil_read(addr);
-    //         if(axil_mod.read_data != wr_data) begin
-    //             $display("AXIL WRITE/READ TRANSACTION FAILED");
-    //             $display("AXIL WRITE DATA = %d READ DATA = %d", wr_data, axil_mod.read_data);
-    //             $stop;
-    //         end  
-    //     end
-    // endtask
+        #5000
+        if (i2c_mod.ready == 1) begin
+            axil_mod.axil_read(addr);
+            if(axil_mod.read_data != wr_data) begin
+                $display("AXIL WRITE/READ TRANSACTION FAILED");
+                $display("AXIL WRITE DATA = %d READ DATA = %d", wr_data, axil_mod.read_data);
+                $stop;
+            end  
+        end
+    endtask
 
     // **********AXIL CHECK only******************//
     // task AXIL_compare_results(logic [`C_S_AXI_ADDR_WIDTH-1:0] addr,

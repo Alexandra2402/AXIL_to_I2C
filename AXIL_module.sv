@@ -1,21 +1,29 @@
 
 `timescale 1 ns / 1 ps
 
-	module AXIL_module #
-	(
-		// Users to add parameters here
+`include "AXIL_define.sv"
 
-		// User parameters ends
-		// Do not modify the parameters beyond this line
+	module AXIL_module //#
+	// (
+	// 	// Users to add parameters here
 
-		// Width of S_AXI data bus
-		parameter integer C_S_AXI_DATA_WIDTH	= 32,
-		// Width of S_AXI address bus
-		parameter integer C_S_AXI_ADDR_WIDTH	= 4
-	)
+	// 	// User parameters ends
+	// 	// Do not modify the parameters beyond this line
+
+	// 	// Width of S_AXI data bus
+	// 	parameter integer C_S_AXI_DATA_WIDTH	= 32,
+	// 	// Width of S_AXI address bus
+	// 	parameter integer C_S_AXI_ADDR_WIDTH	= 4
+	// )
 	(
 		// Users to add ports here
-
+		output logic [6:0] i2c_id,
+		output logic [7:0] i2c_subaddr,
+		output logic [7:0] i2c_data_wr,
+		output logic trans_en,
+		output logic trans_type,
+		input logic finish,
+		input logic [7:0] i2c_data_rd,
 		// User ports ends
 		// Do not modify the ports beyond this line
 
@@ -24,7 +32,7 @@
 		// Global Reset Signal. This Signal is Active LOW
 		input wire  S_AXI_ARESETN,
 		// Write address (issued by master, acceped by Slave)
-		input wire [C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_AWADDR,
+		input wire [`C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_AWADDR,
 		// Write channel Protection type. This signal indicates the
     		// privilege and security level of the transaction, and whether
     		// the transaction is a data access or an instruction access.
@@ -36,11 +44,11 @@
     		// to accept an address and associated control signals.
 		output wire  S_AXI_AWREADY,
 		// Write data (issued by master, acceped by Slave) 
-		input wire [C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_WDATA,
+		input wire [`C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_WDATA,
 		// Write strobes. This signal indicates which byte lanes hold
     		// valid data. There is one write strobe bit for each eight
     		// bits of the write data bus.    
-		input wire [(C_S_AXI_DATA_WIDTH/8)-1 : 0] S_AXI_WSTRB,
+		input wire [(`C_S_AXI_DATA_WIDTH/8)-1 : 0] S_AXI_WSTRB,
 		// Write valid. This signal indicates that valid write
     		// data and strobes are available.
 		input wire  S_AXI_WVALID,
@@ -57,7 +65,7 @@
     		// can accept a write response.
 		input wire  S_AXI_BREADY,
 		// Read address (issued by master, acceped by Slave)
-		input wire [C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_ARADDR,
+		input wire [`C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_ARADDR,
 		// Protection type. This signal indicates the privilege
     		// and security level of the transaction, and whether the
     		// transaction is a data access or an instruction access.
@@ -69,7 +77,7 @@
     		// ready to accept an address and associated control signals.
 		output wire  S_AXI_ARREADY,
 		// Read data (issued by slave)
-		output wire [C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_RDATA,
+		output wire [`C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_RDATA,
 		// Read response. This signal indicates the status of the
     		// read transfer.
 		output wire [1 : 0] S_AXI_RRESP,
@@ -82,14 +90,14 @@
 	);
 
 	// AXI4LITE signals
-	reg [C_S_AXI_ADDR_WIDTH-1 : 0] 	axi_awaddr;
+	reg [`C_S_AXI_ADDR_WIDTH-1 : 0] 	axi_awaddr;
 	reg  	axi_awready;
 	reg  	axi_wready;
 	reg [1 : 0] 	axi_bresp;
 	reg  	axi_bvalid;
-	reg [C_S_AXI_ADDR_WIDTH-1 : 0] 	axi_araddr;
+	reg [`C_S_AXI_ADDR_WIDTH-1 : 0] 	axi_araddr;
 	reg  	axi_arready;
-	reg [C_S_AXI_DATA_WIDTH-1 : 0] 	axi_rdata;
+	reg [`C_S_AXI_DATA_WIDTH-1 : 0] 	axi_rdata;
 	reg [1 : 0] 	axi_rresp;
 	reg  	axi_rvalid;
 
@@ -98,19 +106,19 @@
 	// ADDR_LSB is used for addressing 32/64 bit registers/memories
 	// ADDR_LSB = 2 for 32 bits (n downto 2)
 	// ADDR_LSB = 3 for 64 bits (n downto 3)
-	localparam integer ADDR_LSB = (C_S_AXI_DATA_WIDTH/32) + 1;
+	localparam integer ADDR_LSB = (`C_S_AXI_DATA_WIDTH/32) + 1;
 	localparam integer OPT_MEM_ADDR_BITS = 1;
 	//----------------------------------------------
 	//-- Signals for user logic register space example
 	//------------------------------------------------
 	//-- Number of Slave Registers 4
-	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg0;
-	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg1;
-	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg2;
-	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg3;
+	reg [`C_S_AXI_DATA_WIDTH-1:0]	slv_reg0;
+	reg [`C_S_AXI_DATA_WIDTH-1:0]	slv_reg1;
+	reg [`C_S_AXI_DATA_WIDTH-1:0]	slv_reg2;
+	reg [`C_S_AXI_DATA_WIDTH-1:0]	slv_reg3;
 	wire	 slv_reg_rden;
 	wire	 slv_reg_wren;
-	reg [C_S_AXI_DATA_WIDTH-1:0]	 reg_data_out;
+	reg [`C_S_AXI_DATA_WIDTH-1:0]	 reg_data_out;
 	integer	 byte_index;
 	reg	 aw_en;
 
@@ -230,28 +238,28 @@
 	      begin
 	        case ( axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] )
 	          2'h0:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
+	            for ( byte_index = 0; byte_index <= (`C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 0
 	                slv_reg0[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end  
 	          2'h1:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
+	            for ( byte_index = 0; byte_index <= (`C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 1
 	                slv_reg1[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end  
 	          2'h2:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
+	            for ( byte_index = 0; byte_index <= (`C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 2
 	                slv_reg2[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end  
 	          2'h3:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
+	            for ( byte_index = 0; byte_index <= (`C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 3
@@ -265,7 +273,15 @@
 	                    end
 	        endcase
 	      end
-	  end
+		  else if (finish) begin //write i2c read data to axil bus
+			slv_reg0[6] <= 1;
+			slv_reg0[31] <= 0;
+			// if (trans_type)
+				slv_reg0[14:7] <= i2c_data_rd;
+			// else 
+				// slv_reg0[14:7] <= 0;
+		end
+	end
 	end    
 
 	// Implement write response logic generation
@@ -399,6 +415,76 @@
 
 	// Add user logic here
 
+	/*  trans_en 	= slv_reg0[31]
+		trans_type 	= slv_reg0[30]
+		i2c_id		= slv_reg0[29:23]
+		i2c_subaddr = slv_reg0[22:15]
+		i2c_data_wr = slv_reg0[14:7]
+		finish 		= slv_reg0[6]
+	*/
+
+	localparam 	IDLE = 1,
+				WRITE = 2,
+				READ = 3 ;
+
+	logic [1:0] state, state_next;
+	
+	always @(*) begin
+		state_next <= state;
+		case(state)
+			IDLE: begin
+				if(slv_reg0[31]) begin
+					if (slv_reg0[30])
+						state_next <= READ;
+					else state_next <= WRITE;
+				end
+			end
+			READ:  if (finish) state_next <= IDLE;
+			WRITE: if (finish) state_next <= IDLE;
+	    endcase
+	end
+
+	always @(posedge S_AXI_ACLK) begin
+		if (~S_AXI_ARESETN)
+			state <= IDLE;
+		else state <= state_next;
+	end
+
+	always @(posedge S_AXI_ACLK) begin
+		if (~S_AXI_ARESETN) begin
+			trans_en <= 0;
+			trans_type <= 0;
+			i2c_id <= 0;
+			i2c_subaddr <= 0;
+			i2c_data_wr <= 0;
+		end
+		else begin
+			case (state)
+				IDLE: begin
+					trans_en <= 0;
+					trans_type <= 0;
+					i2c_id <= 0;
+					i2c_subaddr <= 0;
+					i2c_data_wr <= 0;
+				end
+				WRITE: begin
+					trans_en <= 1;
+					trans_type <= slv_reg0[30];
+					i2c_id <= slv_reg0[29:23];
+					i2c_subaddr <= slv_reg0[22:15];
+					i2c_data_wr <= slv_reg0[14:7];
+				end
+				READ: begin
+					trans_en <= 1;
+					trans_type <= slv_reg0[30];
+					i2c_id <= slv_reg0[29:23];
+					i2c_subaddr <= slv_reg0[22:15];
+					i2c_data_wr <= 0;
+				end
+			endcase
+		end
+	end
+	
 	// User logic ends
 
 	endmodule

@@ -1,0 +1,17 @@
+`ifndef I2C_INTERFACE
+`define I2C_INTERFACE
+
+// `include "I2C_define.sv"
+
+interface I2C_interface;
+
+logic SIO_C;
+logic SIO_D;
+
+modport slave(
+    output SIO_C,
+    inout SIO_D
+);
+endinterface
+
+`endif

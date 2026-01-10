@@ -10,6 +10,7 @@ class AXIL_model;
 //signals
 logic [`C_S_AXI_DATA_WIDTH-1:0] read_data;
 logic [`C_S_AXI_DATA_WIDTH-1:0] write_data;
+logic finish;
 //interface
 virtual AXIL_interface axil_int;
 
@@ -65,8 +66,9 @@ task AXIL_model :: axil_read (logic [`C_S_AXI_ADDR_WIDTH-1:0] read_address);
                 if(axil_int.S_AXI_RVALID) begin
                     axil_int.S_AXI_RREADY   <= '0;
                     axil_int.S_AXI_ARADDR   <= '0;
-                    read_data = axil.S_AXI_RDATA;
-                    $display("READ TRANSACTION COMPLETE: ADDR = %d DATA = %d", read_address, read_data);
+                    read_data = axil_int.S_AXI_RDATA;
+                    // $display("READ TRANSACTION COMPLETE: ADDR = %d DATA = %d", read_address, read_data);
+                    break;
                 end
                 else begin
                     if (axil_int.rd_cnt_wait !=0)
@@ -86,7 +88,7 @@ endtask: axil_read
 
 //WRITE OPERATION
 task AXIL_model::axil_write (logic [`C_S_AXI_ADDR_WIDTH-1:0] write_address, logic [`C_S_AXI_DATA_WIDTH-1:0] write_data);
-    
+
     @(posedge axil_int.S_AXI_ACLK)
     axil_int.wr_state <= WR_START;
 
@@ -105,7 +107,7 @@ task AXIL_model::axil_write (logic [`C_S_AXI_ADDR_WIDTH-1:0] write_address, logi
             axil_int.wr_cnt_wait    <= `WR_READY_WAIT;
         end
         WR_FINISH: begin
-            if (axil_int.S_AXI_AWREADY & axil_int.S_AXI_WREADY) begin
+            if (axil_int.S_AXI_AWREADY && axil_int.S_AXI_WREADY) begin
                 axil_int.S_AXI_AWVALID  <= '0;
                 axil_int.S_AXI_WVALID   <= '0;
                 axil_int.S_AXI_AWADDR   <= '0;
@@ -128,7 +130,8 @@ task AXIL_model::axil_write (logic [`C_S_AXI_ADDR_WIDTH-1:0] write_address, logi
         WR_RESP: begin
             if(axil_int.S_AXI_BVALID) begin
                 axil_int.S_AXI_BREADY   <= '0;
-                $display("WRITE TRANSACTION COMPLETE: ADDR = %d DATA = %d", read_address, read_data);
+                // $display("WRITE TRANSACTION COMPLETE: ADDR = %d DATA = %d", write_address, write_data);
+                break;
             end
             else begin
                 if (axil_int.wr_cnt_wait !=0)

@@ -15,7 +15,7 @@ logic [`I2C_DATA_WIDTH-1:0] i2c_data_rd;
 logic SIO_C;
 wire SIO_D;
 logic finish;
-logic [19:0] tb_message = 20'b01110111x10111101x0;
+logic [21:0] tb_message = 22'b1001110111x10111101x01;
 logic mes_enb;
 
 event rstn_event;
@@ -34,11 +34,11 @@ initial begin
     -> rstn_event;
 end
 
-assign SIO_D = (mes_enb) ? tb_message[19] : 1'bZ;
+assign SIO_D = (mes_enb) ? tb_message[21] : 1'bZ;
 
 always @(posedge aclk) begin
     if (mes_enb)
-        tb_message <= {tb_message[18:0],1'b0};
+        tb_message <= {tb_message[20:0],1'b0};
     // else
         // tb_message <= 'X;
 end
