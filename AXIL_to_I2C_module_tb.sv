@@ -58,7 +58,7 @@ module AXIL_to_I2C_module_tb();
     localparam AXI_CLK_PERIOD = 10;
     always #(AXI_CLK_PERIOD/2) s_axi_aclk=~s_axi_aclk;
 
-    localparam aclk_period = 10;
+    localparam aclk_period = 25;
     always #(aclk_period/2) aclk=~aclk;
 
     assign axil_int.S_AXI_ACLK 	    =   s_axi_aclk;
@@ -118,11 +118,11 @@ module AXIL_to_I2C_module_tb();
     //         .S_AXI_RREADY(s_axi_rready)
     // );
 
-    AXI_I2C
+    AXI_SCCB_top
         DUT (
             .SIO_C(SIO_C),
             .SIO_D(i2c_int.SIO_D),
-            .aclk(aclk),
+            .clk_40(aclk),
             .aresetn(aresetn),
             .S_AXI_ACLK(axil_int.S_AXI_ACLK),
             .S_AXI_ARESETN(s_axi_aresetn),
@@ -193,26 +193,26 @@ module AXIL_to_I2C_module_tb();
             axil_mod.axil_write(0, wr_data);
             $display("WRITE TO I2C SLAVE");
             #500
-            for (i = 0; i < 100; i++) begin
+            for (i = 0; i < 10000; i++) begin
                 axil_mod.axil_read(0);
                 if (axil_mod.read_data[6] == 1)
                     break;
-                else if (i == 99) begin
+                else if (i == 9999) begin
                     $display("WRITE FINISH RESPONSE ERROR");
                     $stop;
                 end
             end
             // if (i2c_mod.wr_ready == 1) begin
                 trans_type = 1;
-                wr_data = {trans_en,1'b1,i2c_id,i2c_subaddr,i2c_data_wr,7'b0000000};
+                wr_data = {trans_en,1'b1,i2c_id,i2c_subaddr,8'b0000000,7'b0000000};
                 axil_mod.axil_write(addr, wr_data);
                 $display("READ FROM I2C SLAVE");
             // end
-            for (i = 0; i < 100; i++) begin
+            for (i = 0; i < 10000; i++) begin
                 axil_mod.axil_read(0);
                 if (axil_mod.read_data[6] == 1)
                     break;
-                else if (i == 99) begin
+                else if (i == 9999) begin
                     $display("READ FINISH RESPONSE ERROR");
                     $stop;
                 end
@@ -221,7 +221,7 @@ module AXIL_to_I2C_module_tb();
                     axil_mod.axil_read(addr);
                 if(axil_mod.read_data[14:7] != i2c_data_wr) begin
                     $display("AXIL WRITE/READ TRANSACTION FAILED");
-                    $display("AXIL WRITE DATA = %d READ DATA = %d", i2c_data_wr, axil_mod.read_data);
+                    $display("AXIL WRITE DATA = %d READ DATA = %d", i2c_data_wr, axil_mod.read_data[14:7]);
                     $stop;
                 end
             // end

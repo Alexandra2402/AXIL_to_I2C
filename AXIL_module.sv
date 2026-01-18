@@ -121,6 +121,15 @@
 	reg [`C_S_AXI_DATA_WIDTH-1:0]	 reg_data_out;
 	integer	 byte_index;
 	reg	 aw_en;
+	reg i2c_finish_end;
+	reg [3:0][7:0] i2c_data_rd_delay;
+
+	localparam 	IDLE = 0,
+				WRITE = 1,
+				READ = 2,
+				WAIT_SCCB_FINISH = 3;
+
+	logic [1:0] state, state_next;
 
 	// I/O Connections assignments
 
@@ -224,6 +233,14 @@
 	// and the slave is ready to accept the write address and write data.
 	assign slv_reg_wren = axi_wready && S_AXI_WVALID && axi_awready && S_AXI_AWVALID;
 
+	always @(posedge S_AXI_ACLK) begin
+		i2c_data_rd_delay[0] <= i2c_data_rd;
+		i2c_data_rd_delay[1] <= i2c_data_rd_delay[0];
+		i2c_data_rd_delay[2] <= i2c_data_rd_delay[1];
+		i2c_data_rd_delay[3] <= i2c_data_rd_delay[2];
+	end
+
+
 	always @( posedge S_AXI_ACLK )
 	begin
 	  if ( S_AXI_ARESETN == 1'b0 )
@@ -273,11 +290,11 @@
 	                    end
 	        endcase
 	      end
-		  else if (finish) begin //write i2c read data to axil bus
+		  else if (i2c_finish_end) begin //write i2c read data to axil bus
 			slv_reg0[6] <= 1;
 			slv_reg0[31] <= 0;
 			// if (trans_type)
-				slv_reg0[14:7] <= i2c_data_rd;
+				slv_reg0[14:7] <= i2c_data_rd_delay[4];
 			// else 
 				// slv_reg0[14:7] <= 0;
 		end
@@ -423,24 +440,21 @@
 		finish 		= slv_reg0[6]
 	*/
 
-	localparam 	IDLE = 1,
-				WRITE = 2,
-				READ = 3 ;
-
-	logic [1:0] state, state_next;
 	
 	always @(*) begin
-		state_next <= state;
+		state_next = state;
 		case(state)
 			IDLE: begin
 				if(slv_reg0[31]) begin
 					if (slv_reg0[30])
-						state_next <= READ;
-					else state_next <= WRITE;
+						state_next = READ;
+					else state_next = WRITE;
 				end
+				else state_next = IDLE;
 			end
-			READ:  if (finish) state_next <= IDLE;
-			WRITE: if (finish) state_next <= IDLE;
+			READ:  if (finish) state_next = WAIT_SCCB_FINISH;
+			WRITE: if (finish) state_next = WAIT_SCCB_FINISH;
+			WAIT_SCCB_FINISH: if (/*~finish &*/ slv_reg0[31]== 0) state_next = IDLE;
 	    endcase
 	end
 
@@ -457,6 +471,7 @@
 			i2c_id <= 0;
 			i2c_subaddr <= 0;
 			i2c_data_wr <= 0;
+			i2c_finish_end <= 0;
 		end
 		else begin
 			case (state)
@@ -466,6 +481,7 @@
 					i2c_id <= 0;
 					i2c_subaddr <= 0;
 					i2c_data_wr <= 0;
+					i2c_finish_end <= 0;
 				end
 				WRITE: begin
 					trans_en <= 1;
@@ -473,6 +489,7 @@
 					i2c_id <= slv_reg0[29:23];
 					i2c_subaddr <= slv_reg0[22:15];
 					i2c_data_wr <= slv_reg0[14:7];
+					i2c_finish_end <= 0;
 				end
 				READ: begin
 					trans_en <= 1;
@@ -480,6 +497,18 @@
 					i2c_id <= slv_reg0[29:23];
 					i2c_subaddr <= slv_reg0[22:15];
 					i2c_data_wr <= 0;
+					i2c_finish_end <= 0;
+				end
+				WAIT_SCCB_FINISH: begin
+					trans_en <= 0;
+					trans_type <= 0;
+					i2c_id <= 0;
+					i2c_subaddr <= 0;
+					i2c_data_wr <= 0;
+					if (~finish)
+						i2c_finish_end <= 1;
+					else
+						i2c_finish_end <= 0;
 				end
 			endcase
 		end

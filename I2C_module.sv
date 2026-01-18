@@ -35,6 +35,7 @@ logic flag_delay;
 logic clk_flag_delay;
 logic [1:0] clk_finish = '0;
 logic clk_delay_out;
+logic [21:0] receive_reg_delay;
 
 I2C_phase_state_type PHASE_state;
 I2C_phase_state_type PHASE_state_next;
@@ -46,16 +47,20 @@ assign phase3_data = {i2c_data_wr, 1'bX};
 assign SIO_D = (flag_delay ^ receive_flag) ? message[30] : 1'bZ;
 // assign SIO_C = (clk_flag_delay) ? aclk : 1 ;
 assign SIO_C = (clk_delay_out ~^ clk_flag_delay && clk_flag_delay == 1) ? aclk : 1 ;
-// assign i2c_data_rd = (receive_complete) ? receive_reg[10:3] : 0;
-assign i2c_data_rd = (clk_finish != 0) ? receive_reg[10:3] : 0;
-assign finish = (clk_finish == 0) ? 0 : 1;
+assign i2c_data_rd = (receive_complete) ? receive_reg_delay[9:2] : 0;
+// assign i2c_data_rd = (clk_finish != 0) ? receive_reg[9:2] : 0;
+assign finish = (/*clk_finish == 0*/receive_complete || wr_complete) ? 1 : 0;
 assign clk_flag_delay = wr_flag ? wr_flag ~^ flag_delay : rd_flag ? rd_flag ~^ flag_delay : receive_flag ? receive_flag ~^ flag_delay : 0;
 
-always @(posedge aclk or negedge aresetn) begin
-    if (PHASE_state == PHASE_FINISH)
-        clk_finish <= clk_finish + 1;
-    else clk_finish <= 0;
+always_ff @(posedge aclk) begin
+    receive_reg_delay <= receive_reg;
 end
+
+// always @(posedge aclk or negedge aresetn) begin
+//     if (PHASE_state == PHASE_FINISH)
+//         clk_finish <= clk_finish + 1;
+//     else clk_finish <= 0;
+// end
 
 always_ff @(posedge aclk or negedge aresetn) begin
     if(!aresetn)
@@ -108,7 +113,7 @@ always_comb begin
                 rd_flag = 0;
                 wr_flag = 0;
                 receive_flag = 0;
-                if (clk_finish == 3)
+                // if (clk_finish == 3)
                     PHASE_state_next = PHASE_INIT; 
         end
         endcase
@@ -175,18 +180,16 @@ always @(posedge aclk) begin
     end
 end
 
-always_ff @(negedge aclk or negedge aresetn ) begin 
+always_ff @(negedge aclk /*or negedge aresetn*/ ) begin 
     if (!aresetn)
         receive_reg <= 0;
     else begin
-        if (receive_flag) begin 
-            if (message_cntr >= 0) begin
-                receive_reg[21-message_cntr] <= SIO_D;
-            end
-            else begin
-                receive_reg <= 0;
-            end
-        end
+        if (receive_flag) 
+            // if (message_cntr >= 0) begin
+            receive_reg <= {receive_reg[20:0],SIO_D};
+        // end
+        else 
+            receive_reg <= 0;
     end
 end
 

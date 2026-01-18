@@ -1,7 +1,7 @@
 `include "I2C_define.sv"
 `include "AXIL_define.sv"
 
-module AXI_I2C //#
+module AXI_SCCB //#
 // (
 //     // Width of S_AXI data bus
 //     parameter integer C_S_AXI_DATA_WIDTH	= 32,
@@ -58,11 +58,11 @@ module AXI_I2C //#
 );
 
 
-AXI_I2C_top axi_i2c_i (
+AXI_SCCB_top axi_i2c_i (
     //I2C interface
     .SIO_C(SIO_C),
     .SIO_D(SIO_D),
-    .aclk(aclk),
+    .clk_40(aclk),
     .aresetn(aresetn),
     //AXIL interface
     .S_AXI_ACLK(s_axi_aclk),

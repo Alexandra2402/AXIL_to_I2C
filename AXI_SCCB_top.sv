@@ -1,7 +1,7 @@
 `include "I2C_define.sv"
 `include "AXIL_define.sv"
 
-module AXI_I2C_top //#
+module AXI_SCCB_top //#
 // (
 //     // Width of S_AXI data bus
 //     parameter integer C_S_AXI_DATA_WIDTH	= 32,
@@ -12,7 +12,7 @@ module AXI_I2C_top //#
     //I2C interface
     output logic SIO_C,
     inout wire SIO_D,
-    input logic aclk,
+    input logic clk_40,
     input logic aresetn,
 
     //AXI intarface
@@ -86,6 +86,23 @@ logic trans_type; //rd = 1, wr = 0
 logic trans_en; //start rd/wr transaction
 logic [`I2C_DATA_WIDTH-1:0] i2c_data_rd;
 logic finish;
+logic [5:0] clk_counter;
+logic aclk;
+
+always_ff @(posedge clk_40) begin
+    if (!aresetn) begin
+        clk_counter <= 0;
+        aclk <= 0;
+    end
+    else begin
+        if (clk_counter == 49) begin
+            clk_counter <= 0;
+            aclk <= ~aclk;
+        end
+        else
+            clk_counter <= clk_counter + 1;
+    end
+end  
 
 AXIL_module DUT_axi (.*);
 
