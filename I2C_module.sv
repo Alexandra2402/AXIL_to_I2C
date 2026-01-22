@@ -73,50 +73,48 @@ always_ff @(posedge aclk or negedge aresetn) begin
 end
 
 always_comb begin 
+    rd_flag = 0;
+    wr_flag = 0;
+    receive_flag = 0;
+    PHASE_state_next = PHASE_state;
+    case(PHASE_state) 
+    PHASE_INIT: begin
         rd_flag = 0;
         wr_flag = 0;
-        receive_flag = 0;
-        PHASE_state_next = PHASE_state;
-        case(PHASE_state) 
-        PHASE_INIT: begin
+        if(trans_en && trans_type) begin
+            PHASE_state_next = PHASE_RD_SEND;
+        end
+        else if (trans_en && !trans_type) begin
+            PHASE_state_next = PHASE_WR_SEND;
+        end
+    end
+    PHASE_RD_SEND: begin
+        PHASE_state_next = PHASE_RD_SEND; 
+        rd_flag = 1;
+        if(rd_complete) begin
+            PHASE_state_next = PHASE_RECEIVE;
+        end
+    end
+    PHASE_RECEIVE: begin
+        rd_flag = 0;
+        receive_flag = 1;
+        if (receive_complete) begin
+            PHASE_state_next = PHASE_FINISH;
+            receive_flag = 0;
+        end
+    end
+        PHASE_WR_SEND: begin
+        wr_flag = 1;
+        if(wr_complete)
+            PHASE_state_next = PHASE_FINISH;
+    end
+    PHASE_FINISH: begin
             rd_flag = 0;
             wr_flag = 0;
-            if(trans_en && trans_type) begin
-                PHASE_state_next = PHASE_RD_SEND;
-            end
-            else if (trans_en && !trans_type)begin
-                PHASE_state_next = PHASE_WR_SEND;
-            end
-        end
-        PHASE_RD_SEND: begin
-            PHASE_state_next = PHASE_RD_SEND; 
-            rd_flag = 1;
-            if(rd_complete) begin
-                // rd_flag = 0;
-                PHASE_state_next = PHASE_RECEIVE;
-            end
-        end
-        PHASE_RECEIVE: begin
-            rd_flag = 0;
-            receive_flag = 1;
-            if (receive_complete) begin
-                PHASE_state_next = PHASE_FINISH;
-                receive_flag = 0;
-            end
-        end
-         PHASE_WR_SEND: begin
-            wr_flag = 1;
-            if(wr_complete)
-                PHASE_state_next = PHASE_FINISH;
-        end
-        PHASE_FINISH: begin
-                rd_flag = 0;
-                wr_flag = 0;
-                receive_flag = 0;
-                // if (clk_finish == 3)
-                    PHASE_state_next = PHASE_INIT; 
-        end
-        endcase
+            receive_flag = 0;
+            PHASE_state_next = PHASE_INIT; 
+    end
+    endcase
 end
 
 always @(posedge aclk or negedge aresetn) begin
@@ -163,7 +161,7 @@ always_ff @( posedge aclk ) begin
     else wr_complete <= 0;
 end
 
-always @(posedge aclk) begin
+always_ff @(posedge aclk) begin
     if (rd_flag) begin 
         if (message_cntr >= 1)
             message <= {message[29:0], 1'bz};

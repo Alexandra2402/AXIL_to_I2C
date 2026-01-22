@@ -12,7 +12,7 @@ module AXI_SCCB_top //#
     //I2C interface
     output logic SIO_C,
     inout wire SIO_D,
-    input logic clk_40,
+    input logic clk_40, //input clk = 40 MHz
     input logic aresetn,
 
     //AXI intarface
@@ -89,7 +89,7 @@ logic finish;
 logic [5:0] clk_counter;
 logic aclk;
 
-always_ff @(posedge clk_40) begin
+always_ff @(posedge clk_40) begin // create internal clk = 400 kHz for I2C interface
     if (!aresetn) begin
         clk_counter <= 0;
         aclk <= 0;
